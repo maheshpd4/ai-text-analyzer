@@ -1,0 +1,8 @@
+{
+    "input_text": "This is a great learning",
+    "word_count": 5,
+    "character_count": 24,
+    "positive_words": 1,
+    "negative_words": 0,
+    "sentiment": "Positive"
+}
