@@ -1,43 +1,54 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from confluent_kafka import Producer
+import json
+import logging
+import os
+
+logging.basicConfig(level=logging.INFO)
 
 app = FastAPI()
+
+import os
+
+producer_config = {
+    "bootstrap.servers": os.getenv("KAFKA_BOOTSTRAP_SERVERS", "127.0.0.1:9092")
+}
+
+producer = Producer(producer_config)
 
 class TextInput(BaseModel):
     text: str
 
-@app.get("/")
-def home():
-    return {"message": "AI Text Analyzer API Running"}
-
 @app.post("/analyze")
 def analyze_text(input_data: TextInput):
 
-    text = input_data.text
+    try:
 
-    words = text.split()
+        text = input_data.text
 
-    word_count = len(words)
-    char_count = len(text)
+        if not text.strip():
+            raise HTTPException(status_code=400, detail="Input text cannot be empty")
 
-    positive_words = ["good", "great", "excellent", "happy", "awesome"]
-    negative_words = ["bad", "sad", "angry", "poor", "worst"]
+        message = {
+            "text": text
+        }
 
-    positive_count = sum(word.lower() in positive_words for word in words)
-    negative_count = sum(word.lower() in negative_words for word in words)
+        producer.produce(
+            topic="text-events",
+            value=json.dumps(message)
+        )
 
-    sentiment = "Neutral"
+        producer.flush()
 
-    if positive_count > negative_count:
-        sentiment = "Positive"
-    elif negative_count > positive_count:
-        sentiment = "Negative"
+        logging.info(f"Message published to Kafka: {message}")
 
-    return {
-        "input_text": text,
-        "word_count": word_count,
-        "character_count": char_count,
-        "positive_words": positive_count,
-        "negative_words": negative_count,
-        "sentiment": sentiment
-    }
+        return {
+            "status": "SUCCESS",
+            "message": "Text published to Kafka topic",
+            "data": message
+        }
+
+    except Exception as e:
+        logging.exception("Kafka publish failed")
+        raise HTTPException(status_code=500, detail=str(e))
