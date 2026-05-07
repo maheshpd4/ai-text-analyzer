@@ -1,18 +1,15 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from confluent_kafka import Producer
+import sqlite3
 import json
 import logging
-import os
-
-logging.basicConfig(level=logging.INFO)
 
 app = FastAPI()
 
-import os
-
+# Kafka Config
 producer_config = {
-    "bootstrap.servers": os.getenv("KAFKA_BOOTSTRAP_SERVERS", "127.0.0.1:9092")
+    "bootstrap.servers": "localhost:9092"
 }
 
 producer = Producer(producer_config)
@@ -20,35 +17,50 @@ producer = Producer(producer_config)
 class TextInput(BaseModel):
     text: str
 
+
+@app.get("/")
+def home():
+    return {"message": "AI Text Analyzer API Running"}
+
+
 @app.post("/analyze")
 def analyze_text(input_data: TextInput):
 
-    try:
+    text = input_data.text
 
-        text = input_data.text
+    message = {
+        "text": text
+    }
 
-        if not text.strip():
-            raise HTTPException(status_code=400, detail="Input text cannot be empty")
+    producer.produce(
+        topic="text-events",
+        value=json.dumps(message)
+    )
 
-        message = {
-            "text": text
-        }
+    producer.flush()
 
-        producer.produce(
-            topic="text-events",
-            value=json.dumps(message)
-        )
+    return {
+        "status": "SUCCESS",
+        "message": "Text published to Kafka topic"
+    }
 
-        producer.flush()
 
-        logging.info(f"Message published to Kafka: {message}")
+@app.get("/results")
+def get_results():
 
-        return {
-            "status": "SUCCESS",
-            "message": "Text published to Kafka topic",
-            "data": message
-        }
+    connection = sqlite3.connect("sentiment.db")
 
-    except Exception as e:
-        logging.exception("Kafka publish failed")
-        raise HTTPException(status_code=500, detail=str(e))
+    cursor = connection.cursor()
+
+    cursor.execute("""
+    SELECT * FROM sentiment_results
+    ORDER BY id DESC
+    """)
+
+    rows = cursor.fetchall()
+
+    connection.close()
+
+    return {
+        "results": rows
+    }
