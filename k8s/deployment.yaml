@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: text-analyzer-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: text-analyzer-api
+  template:
+    metadata:
+      labels:
+        app: text-analyzer-api
+    spec:
+      containers:
+        - name: text-analyzer-api
+          image: maheshpd4/ai-text-analyzer-api:v3
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000

@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: text-analyzer-consumer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: text-analyzer-consumer
+  template:
+    metadata:
+      labels:
+        app: text-analyzer-consumer
+    spec:
+      containers:
+        - name: text-analyzer-consumer
+          image: maheshpd4/text-analyzer-consumer:v5
+          imagePullPolicy: Always
